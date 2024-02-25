@@ -44,6 +44,30 @@ app.use(cors());
 
 app.use('/myRoute', myRoute);
 
+////////////////////////////
+// Test Upload            //
+////////////////////////////
+
+const multer = require('multer');
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+const MyFile = require('./models/MyFile');
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+    try {
+        const file = req.file;
+        const newFile = new MyFile({
+            filename: file.originalname,
+        });
+
+        await newFile.save();
+        res.json({ message: 'File uploaded successfully!', file: newFile});
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error uploading file' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server is now running at port ${port}.`);
 })
