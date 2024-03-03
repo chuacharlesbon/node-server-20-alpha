@@ -48,25 +48,63 @@ app.use('/myRoute', myRoute);
 // Test Upload            //
 ////////////////////////////
 
-const multer = require('multer');
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-const MyFile = require('./models/MyFile');
+const AWS = require('aws-sdk');
 
-app.post('/upload', upload.single('file'), async (req, res) => {
-    try {
-        const file = req.file;
-        const newFile = new MyFile({
-            filename: file.originalname,
-        });
-
-        await newFile.save();
-        res.json({ message: 'File uploaded successfully!', file: newFile});
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error uploading file' });
-    }
+AWS.config.update({
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_KEY,
+    region: process.env.AWS_REGION,
 });
+
+const s3 = new AWS.S3();
+
+const multer = require('multer');
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024, // limit file size to 5MB
+    },
+});
+
+app.post('/upload', upload.single('file'), (req, res) => {
+    const params = {
+        Bucket: 'cmt-bucket-alpha',
+        Key: req.file.originalname,
+        Body: req.file.buffer,
+    };
+
+    s3.upload(params, (err, data) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error uploading file');
+        }
+
+        console.log('This is the data', data);
+
+        res.send('File uploaded successfully');
+    });
+});
+
+// const multer = require('multer');
+// const storage = multer.memoryStorage();
+// const upload = multer({ storage });
+// const MyFile = require('./models/MyFile');
+
+// app.post('/upload', upload.single('file'), async (req, res) => {
+//     try {
+//         const file = req.file;
+//         const newFile = new MyFile({
+//             filename: file.originalname,
+//         });
+
+//         await newFile.save();
+//         res.json({ message: 'File uploaded successfully!', file: newFile});
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ message: 'Error uploading file' });
+//     }
+// });
 
 app.listen(port, () => {
     console.log(`Server is now running at port ${port}.`);
